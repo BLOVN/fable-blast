@@ -2,7 +2,7 @@
    Oyun kabuğunu önbelleğe alır: ilk açılıştan sonra internetsiz çalışır.
    Firebase istekleri araya girilmeden ağa bırakılır (skorlar internet ister).
    NOT: Oyunu güncellediğinde aşağıdaki sürüm adını değiştir (v1 -> v2). */
-var CACHE = 'fable-blast-v1';
+var CACHE = 'fable-blast-v2';
 var ASSETS = [
   './',
   './index.html',

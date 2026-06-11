@@ -131,8 +131,11 @@
 
   /* sürüklenen parça */
   #drag{ position:fixed; left:0; top:0; z-index:50; pointer-events:none; display:none;
-    gap:var(--gap); will-change:transform; transform-origin:0 0;
+    gap:var(--gap); will-change:transform; transform-origin:50% 100%;
     filter:drop-shadow(0 12px 16px rgba(0,0,0,.55)); }
+  /* tutunca konuma dokunmadan kısa "pop" (parça canlansın) */
+  @keyframes pickpop{ 0%{ filter:drop-shadow(0 6px 10px rgba(0,0,0,.5)) brightness(1.25); }
+    100%{ filter:drop-shadow(0 12px 16px rgba(0,0,0,.55)) brightness(1); } }
   #drag .blk{ width:var(--cell); height:var(--cell); }
 
   /* uçan yazılar */
@@ -711,6 +714,7 @@
     var h = p.shape.length * o.pitch - gapPx;
     els.drag.innerHTML = '';
     els.drag.style.display = 'grid';
+    els.drag.style.transition = 'none';
     els.drag.style.gridTemplateColumns = 'repeat(' + p.shape[0].length + ', var(--cell))';
     for(var r=0;r<p.shape.length;r++) for(var c=0;c<p.shape[0].length;c++){
       var b = document.createElement('div');
@@ -722,26 +726,16 @@
     try{ if(e.target.setPointerCapture) e.target.setPointerCapture(e.pointerId); }catch(err){}
 
     drag = { p:p, slot:slotIdx, w:w, h:h, o:o,
-             lift: Math.max(o.cell*0.95, 44), scale:1.03,
+             lift: Math.max(o.cell*0.78, 36),
              valid:false, r:0, c:0, pR:-99, pC:-99, pOk:null,
-             lastX:null, lastY:null,
              deal:dealId, id:e.pointerId };
 
-    // raftan parmağa yumuşak "kaldırma" geçişi (sonrasında 1:1 takip)
-    var fromRect = p.el ? p.el.getBoundingClientRect() : null;
-    els.drag.style.transition = 'none';
-    if(fromRect){
-      var s0 = fromRect.width / w;
-      els.drag.style.transform = 'translate(' + fromRect.left + 'px,' + fromRect.top + 'px) scale(' + s0 + ')';
-    }
-    requestAnimationFrame(function(){
-      if(!drag || drag.id !== e.pointerId) return;
-      els.drag.style.transition = 'transform .06s cubic-bezier(.2,.8,.3,1)';
-      moveDrag(e);
-      setTimeout(function(){
-        if(drag && drag.id === e.pointerId) els.drag.style.transition = 'none';
-      }, 65);
-    });
+    // Parçayı İLK kareden itibaren parmağa kilitle: kayan geçiş yok, gecikme yok.
+    // Konuma dokunmayan kısa bir "pop" (büyüyerek belirme) hissi verir.
+    els.drag.style.animation = 'none';
+    moveDrag(e);
+    void els.drag.offsetWidth;          // reflow -> animasyon yeniden tetiklensin
+    els.drag.style.animation = 'pickpop .12s ease-out';
 
     sPick(); buzz(10);
     e.preventDefault();
@@ -749,17 +743,9 @@
   function moveDrag(e){
     if(!drag) return;
     var x = e.clientX, y = e.clientY;
-    // hız bazlı "öne kaçma": parmak hızlı kayarken parça gidiş yönüne biraz yaklaşır
-    // -> daha çevik/hızlı his. Yavaşlayıp bırakırken sıfırlanır, hassasiyet bozulmaz.
-    var lx = 0, ly = 0;
-    if(drag.lastX != null){
-      var cap = drag.o.cell * 0.75;
-      lx = (x - drag.lastX) * 0.30; if(lx > cap) lx = cap; else if(lx < -cap) lx = -cap;
-      ly = (y - drag.lastY) * 0.30; if(ly > cap) ly = cap; else if(ly < -cap) ly = -cap;
-    }
-    drag.lastX = x; drag.lastY = y;
-    var left = x - drag.w/2 + lx, top = y - drag.h - drag.lift + ly;
-    els.drag.style.transform = 'translate(' + left + 'px,' + top + 'px) scale(' + drag.scale + ')';
+    // Parça parmağın tam altında, 1:1 takip. Hesaplama minimum -> takılma yok.
+    var left = x - drag.w/2, top = y - drag.h - drag.lift;
+    els.drag.style.transform = 'translate3d(' + left + 'px,' + top + 'px,0)';
     var r = Math.round((top - drag.o.top) / drag.o.pitch);
     var c = Math.round((left - drag.o.left) / drag.o.pitch);
     if(r !== drag.pR || c !== drag.pC || drag.pOk === null){
